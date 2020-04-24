@@ -5,9 +5,10 @@ In order to use it, clone and set the EXAMPLE_ESP_WIFI_SSID and EXAMPLE_ESP_WIFI
 \
 The way it works is by sending ARP requests packets to all of the network possible addresses (currently it assumes the network's subnet mask is 255.255.255.0 as most home networks are) and then trying to read from the lwIP ARP table in batches of 10 (this is because the default MAX_SIZE of lwIP ARP table is 10 entries, so in order to not mess around with the default configs I preferred to use this solution).\
 When the scan is finished, all of the found IPs are printed to stdout of the device. The found devices list is stored in a cJSON object which can be sent later to server-side.\
+This tool now also tries to translate found MAC addresses to vendor name using "api.macaddress.io" API. I used this one because it has a free plan but you can also set it to any other similar API by changing "MAC_LOOKUP_SERVER_ADDRESS" header or disable this functionality completely.\
+If you do choose to use this API, you can just create a free account, get your API token and replace it in the "MAC_LOOKUP_SERVER_ADDRESS" header.\
 If this tool doesn't discover all of your devices, you can also try to use ICMP echo request (aka ping) and then try to read the ARP table again for any changes.\
-This tool now also tries to translate found MAC addresses to vendor name using "api.macaddress.io" API. I used this one because it has a free plan but you can set it to any other similar API by changing "MAC_LOOKUP_SERVER_ADDRESS" header or disbale this functionality completly.\
-If you do choose to use this API, you can just create a free account, get your API token and replace it in the "MAC_LOOKUP_SERVER_ADDRESS" header
+\
 A ping lib functionality will be added soon.\
 \
 ![alt text](https://raw.githubusercontent.com/agentzex/ESP_network_ip_scanner/master/Capture.JPG)
