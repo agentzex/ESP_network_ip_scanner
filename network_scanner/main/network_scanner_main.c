@@ -29,11 +29,41 @@
 #include "wifi_connect.h"
 
 
-/* Constants that aren't configurable in menuconfig */
+#define MAC_LOOKUP_SERVER_ADDRESS "https://api.macaddress.io/v1?apiKey=put_your_api_key_here&search="
+#define MAX_VENDOR_NAME_SIZE 100
 static const char *TAG = "Network_Scanner";
 
 //gloabls
 cJSON *arp_table_json;;	
+
+
+void get_vendor_from_mac(char* mac, char* vendor){
+    char r_url[512];
+    sprintf(r_url, "%s%s", MAC_LOOKUP_SERVER_ADDRESS, mac);
+
+    esp_http_client_config_t config = {
+        .url = r_url,
+        //.event_handler = _http_event_handler,
+        .timeout_ms = 1000 * 30,
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    //esp_http_client_set_header(client, "Accept", "text/plain"); 
+    //esp_http_client_set_header(client, "Authorization", MAC_LOOKUP_SERVER_API_TOKEN); //add api token header add api token header
+
+    esp_err_t err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        int length_read = esp_http_client_get_content_length(client);
+        //ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d",esp_http_client_get_status_code(client), length_read);
+
+        esp_http_client_read(client, vendor, MAX_VENDOR_NAME_SIZE);
+        //ESP_LOGI(TAG, "HTTP returned data:\n%s", vendor);
+    }
+    else {
+        //ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
+    }
+    esp_http_client_cleanup(client);
+}
+
 
 
 void split_ip(char *interface_ip, char *from_ip){
@@ -75,17 +105,18 @@ void read_arp_table(char * from_ip, int read_from, int read_to){
         struct eth_addr *eth_ret = NULL;
         if(etharp_find_addr(NULL, &test_ip, &eth_ret, &ipaddr_ret) >= 0){
             ESP_LOGI(TAG, "Adding found IP: %s", ipaddr_ntoa(&test_ip));
-
             cJSON *entry;
             char entry_name[10];
             char mac[20];
+            char vendor[MAX_VENDOR_NAME_SIZE + 1] = {0};
             sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",eth_ret->addr[0],eth_ret->addr[1],eth_ret->addr[2],eth_ret->addr[3],eth_ret->addr[4],eth_ret->addr[5]);        
+            get_vendor_from_mac(mac, vendor); //get vendor name from MAC using some public API
 
             itoa(i, entry_name, 10);
-            cJSON_AddItemToObject(arp_table_json, entry_name, entry=cJSON_CreateObject()); //the key name will be the last ip byte
+            cJSON_AddItemToObject(arp_table_json, entry_name, entry=cJSON_CreateObject()); //the key name will be the last ip
             cJSON_AddStringToObject(entry, "ip", ipaddr_ntoa(&test_ip));
             cJSON_AddStringToObject(entry, "mac", mac);
-            cJSON_AddStringToObject(entry, "vendor", "");
+            cJSON_AddStringToObject(entry, "vendor", vendor);
         }
 	}
 }
@@ -97,13 +128,13 @@ void send_arp(char * from_ip){
     void * netif = NULL;
     tcpip_adapter_get_netif(0, &netif);
     struct netif *netif_interface = (struct netif *)netif;
+    //since the default arp table size in lwip is 10, and after 10 it overrides existing entries,
+    //after each 10 arp reqeusts sent, we'll try to read and store from the arp table.
     int counter = 0;
     int read_entry_from = 1;
     int read_entry_to = 10;
     for (char i = 1; i < 255; i++) {
 		if (counter > 9){
-            //since the default arp table size in lwip is 10, and after 10 it overrides existing entries,
-            //after each 10 arp reqeusts sent, we'll try to read and store from the arp table.
             counter = 0; //zeoring arp table counter back to 0
             read_arp_table(from_ip, read_entry_from, read_entry_to);
             read_entry_from = read_entry_from + 10;
@@ -158,6 +189,6 @@ void app_main()
 
     ESP_LOGI(TAG, "starting network scanner");
     wifi_init_sta(); //init for wifi
-    xTaskCreate(&scanner_task, "scanner_task", 20000, NULL, 5, NULL);
+    xTaskCreate(&scanner_task, "scanner_task", 25000, NULL, 5, NULL);
 
 }
