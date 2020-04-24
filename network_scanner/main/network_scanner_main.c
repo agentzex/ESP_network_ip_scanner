@@ -47,12 +47,9 @@ void get_vendor_from_mac(char* mac, char* vendor){
         .timeout_ms = 1000 * 30,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
-    //esp_http_client_set_header(client, "Accept", "text/plain"); 
-    //esp_http_client_set_header(client, "Authorization", MAC_LOOKUP_SERVER_API_TOKEN); //add api token header add api token header
-
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
-        int length_read = esp_http_client_get_content_length(client);
+        //int length_read = esp_http_client_get_content_length(client);
         //ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d",esp_http_client_get_status_code(client), length_read);
 
         esp_http_client_read(client, vendor, MAX_VENDOR_NAME_SIZE);
@@ -134,14 +131,14 @@ void send_arp(char * from_ip){
     int read_entry_from = 1;
     int read_entry_to = 10;
     for (char i = 1; i < 255; i++) {
-		if (counter > 9){
+	if (counter > 9){
             counter = 0; //zeoring arp table counter back to 0
             read_arp_table(from_ip, read_entry_from, read_entry_to);
             read_entry_from = read_entry_from + 10;
             read_entry_to = read_entry_to + 10;
         }
         char test[32];
-		sprintf(test, "%s%d", from_ip, i);
+	sprintf(test, "%s%d", from_ip, i);
         const ip_addr_t test_ip;
         ipaddr_aton(test, &test_ip);
         
